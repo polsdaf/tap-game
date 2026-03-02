@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
 <style>
 body{
 margin:0;
@@ -28,10 +29,9 @@ border-radius:15px;
 }
 #character{
 width:220px;
-margin-top:20px;
+margin:20px auto;
 cursor:pointer;
 transition:0.15s;
-position:relative;
 }
 #character:active{transform:scale(1.08);}
 .money{
@@ -61,7 +61,7 @@ border:none;
 border-radius:8px;
 background:gold;
 cursor:pointer;
-margin-top:5px;
+margin:5px;
 }
 #popup{
 position:fixed;
@@ -76,13 +76,13 @@ display:none;
 }
 </style>
 </head>
+
 <body>
 
-<h2 id="username"></h2>
 <h1>💎 ПУТЬ К ОЛИГАРХУ 💎</h1>
 
 <div id="character"></div>
-<div id="status">Бомж</div>
+<h2 id="status"></h2>
 
 <div class="glass">
 <h2 id="score">0$</h2>
@@ -103,41 +103,73 @@ display:none;
 
 <div id="popup"></div>
 
-<audio id="clickSound">
-<source src="https://assets.mixkit.co/sfx/preview/mixkit-game-click-1114.mp3">
-</audio>
-
 <script>
-let tg = window.Telegram.WebApp;
-tg.expand();
-
-let user = tg.initDataUnsafe?.user;
-if(user){
-document.getElementById("username").innerText = "Игрок: @" + (user.username || user.first_name);
-}else{
-document.getElementById("username").innerText = "Игрок";
-}
-
 let score=0, level=1, xp=0;
 let tapIncome=1, passiveIncome=0;
 let energy=100, maxEnergy=100;
 let boostActive=false, lastDaily=0;
 
-const stages=[
-{lvl:1,name:"Бомж",color:"#777"},
-{lvl:3,name:"Работяга",color:"#4caf50"},
-{lvl:6,name:"Бизнесмен",color:"#2196f3"},
-{lvl:10,name:"Миллионер",color:"#ff9800"},
-{lvl:15,name:"Олигарх",color:"#ffd700"}
-];
+function generateCharacter(stage){
+if(stage==="Бомж"){
+return `<svg width="220" height="260">
+<circle cx="110" cy="60" r="40" fill="#9e9e9e"/>
+<rect x="70" y="110" width="80" height="100" rx="15" fill="#616161"/>
+<line x1="70" y1="140" x2="150" y2="150" stroke="black" stroke-width="4"/>
+</svg>`;
+}
+if(stage==="Работяга"){
+return `<svg width="220" height="260">
+<circle cx="110" cy="60" r="40" fill="#ffcc80"/>
+<rect x="70" y="110" width="80" height="100" rx="15" fill="#4caf50"/>
+<rect x="75" y="20" width="70" height="25" fill="orange"/>
+</svg>`;
+}
+if(stage==="Бизнесмен"){
+return `<svg width="220" height="260">
+<circle cx="110" cy="60" r="40" fill="#ffe0b2"/>
+<rect x="70" y="110" width="80" height="100" rx="15" fill="#1976d2"/>
+<polygon points="110,110 95,140 125,140" fill="red"/>
+</svg>`;
+}
+if(stage==="Миллионер"){
+return `<svg width="220" height="260">
+<circle cx="110" cy="60" r="40" fill="#fff176"/>
+<rect x="70" y="110" width="80" height="100" rx="15" fill="#000"/>
+<rect x="85" y="50" width="20" height="10" fill="black"/>
+<rect x="115" y="50" width="20" height="10" fill="black"/>
+</svg>`;
+}
+if(stage==="Олигарх"){
+return `<svg width="220" height="260">
+<circle cx="110" cy="60" r="40" fill="#ffd54f"/>
+<rect x="70" y="110" width="80" height="100" rx="15" fill="#311b92"/>
+<polygon points="90,10 110,30 130,10 150,30 70,30" fill="gold"/>
+</svg>`;
+}
+}
 
-function generateCharacter(color){
-return `
-<svg width="220" height="260" viewBox="0 0 200 250">
-<circle cx="100" cy="60" r="40" fill="${color}" />
-<rect x="60" y="110" width="80" height="100" rx="15" fill="${color}" />
-</svg>
-`;
+function updateStage(){
+let current="Бомж";
+if(level>=15) current="Олигарх";
+else if(level>=10) current="Миллионер";
+else if(level>=6) current="Бизнесмен";
+else if(level>=3) current="Работяга";
+
+document.getElementById("character").innerHTML=
+generateCharacter(current);
+
+document.getElementById("status").innerText=current;
+}
+
+function updateUI(){
+document.getElementById("score").innerText=score+"$";
+document.getElementById("level").
+innerText="Уровень "+level;
+document.getElementById("tapIncome").innerText=tapIncome;
+document.getElementById("passiveIncome").innerText=passiveIncome;
+document.getElementById("xpbar").style.width=(xp/(level*100)*100)+"%";
+document.getElementById("energybar").style.width=(energy/maxEnergy*100)+"%";
+updateStage();
 }
 
 function popup(text){
@@ -147,53 +179,17 @@ p.style.display="block";
 setTimeout(()=>p.style.display="none",1500);
 }
 
-function createMoney(amount){
-let m=document.createElement("div");
-m.className="money";
-m.innerText="+"+amount+"$";
-m.style.left=(Math.random()*100)+"px";
-document.getElementById("character").appendChild(m);
-setTimeout(()=>m.remove(),1000);
-}
-
-function updateStage(){
-for(let i=stages.length-1;i>=0;i--){
-if(level>=stages[i].lvl){
-document.getElementById("character").innerHTML=generateCharacter(stages[i].color);
-document.getElementById("status").innerText=stages[i].name;
-break;
-}
-}
-}
-
-function updateUI(){
-document.getElementById("score").innerText=score+"$";
-document.getElementById("level").innerText="Уровень "+level;
-document.getElementById("tapIncome").innerText=tapIncome;
-document.getElementById("passiveIncome").innerText=passiveIncome;
-document.getElementById("xpbar").
-style.width=(xp/(level*100)*100)+"%";
-document.getElementById("energybar").style.width=(energy/maxEnergy*100)+"%";
-updateStage();
-}
-updateUI();
-
 document.getElementById("character").onclick=function(){
 if(energy<=0)return;
 let income=boostActive?tapIncome*2:tapIncome;
 score+=income;
 xp+=5;
 energy--;
-
-createMoney(income);
-document.getElementById("clickSound").play();
-
 if(xp>=level*100){
 xp=0;
 level++;
-popup("Новый статус!");
+popup("Новый уровень!");
 }
-
 updateUI();
 };
 
@@ -237,6 +233,8 @@ score+=passiveIncome;
 if(energy<maxEnergy)energy++;
 updateUI();
 },1000);
+
+updateUI();
 </script>
 </body>
 </html>
