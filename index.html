@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+body{
+margin:0;
+font-family:Arial;
+color:white;
+text-align:center;
+background:linear-gradient(-45deg,#0f2027,#203a43,#2c5364,#1e3c72);
+background-size:400% 400%;
+animation:bg 15s ease infinite;
+overflow:hidden;
+}
+@keyframes bg{
+0%{background-position:0% 50%}
+50%{background-position:100% 50%}
+100%{background-position:0% 50%}
+}
+.glass{
+background:rgba(255,255,255,0.08);
+backdrop-filter:blur(15px);
+margin:15px;
+padding:15px;
+border-radius:15px;
+}
+#character{
+width:220px;
+margin-top:20px;
+cursor:pointer;
+transition:0.15s;
+position:relative;
+}
+#character:active{transform:scale(1.08);}
+.money{
+position:absolute;
+color:gold;
+font-weight:bold;
+animation:fly 1s forwards;
+pointer-events:none;
+}
+@keyframes fly{
+0%{opacity:1;transform:translateY(0);}
+100%{opacity:0;transform:translateY(-80px);}
+}
+.progress{
+width:80%;
+height:12px;
+background:#333;
+margin:10px auto;
+border-radius:10px;
+overflow:hidden;
+}
+.bar{height:100%;background:lime;width:0%;}
+.energybar{height:100%;background:cyan;width:100%;}
+button{
+padding:8px 12px;
+border:none;
+border-radius:8px;
+background:gold;
+cursor:pointer;
+margin-top:5px;
+}
+#popup{
+position:fixed;
+top:40%;
+left:50%;
+transform:translate(-50%,-50%);
+font-size:26px;
+background:rgba(0,0,0,0.7);
+padding:20px 40px;
+border-radius:15px;
+display:none;
+}
+</style>
+</head>
+<body>
+
+<h2 id="username"></h2>
+<h1>💎 ПУТЬ К ОЛИГАРХУ 💎</h1>
+
+<div id="character"></div>
+<div id="status">Бомж</div>
+
+<div class="glass">
+<h2 id="score">0$</h2>
+<h3 id="level">Уровень 1</h3>
+<div class="progress"><div class="bar" id="xpbar"></div></div>
+<h3>⚡ Энергия</h3>
+<div class="progress"><div class="energybar" id="energybar"></div></div>
+</div>
+
+<div class="glass">
+<h3>💰 Доход за тап: <span id="tapIncome">1</span></h3>
+<h3>🏦 Пассивный доход: <span id="passiveIncome">0</span>/сек</h3>
+<button onclick="upgradeTap()">Прокачать клик (100$)</button>
+<button onclick="buyPassive()">Купить бизнес (250$)</button>
+<button onclick="boost()">🔥 x2 на 10 сек (500$)</button>
+<button onclick="daily()">🎁 Ежедневный бонус</button>
+</div>
+
+<div id="popup"></div>
+
+<audio id="clickSound">
+<source src="https://assets.mixkit.co/sfx/preview/mixkit-game-click-1114.mp3">
+</audio>
+
+<script>
+let tg = window.Telegram.WebApp;
+tg.expand();
+
+let user = tg.initDataUnsafe?.user;
+if(user){
+document.getElementById("username").innerText = "Игрок: @" + (user.username || user.first_name);
+}else{
+document.getElementById("username").innerText = "Игрок";
+}
+
+let score=0, level=1, xp=0;
+let tapIncome=1, passiveIncome=0;
+let energy=100, maxEnergy=100;
+let boostActive=false, lastDaily=0;
+
+const stages=[
+{lvl:1,name:"Бомж",color:"#777"},
+{lvl:3,name:"Работяга",color:"#4caf50"},
+{lvl:6,name:"Бизнесмен",color:"#2196f3"},
+{lvl:10,name:"Миллионер",color:"#ff9800"},
+{lvl:15,name:"Олигарх",color:"#ffd700"}
+];
+
+function generateCharacter(color){
+return `
+<svg width="220" height="260" viewBox="0 0 200 250">
+<circle cx="100" cy="60" r="40" fill="${color}" />
+<rect x="60" y="110" width="80" height="100" rx="15" fill="${color}" />
+</svg>
+`;
+}
+
+function popup(text){
+let p=document.getElementById("popup");
+p.innerText=text;
+p.style.display="block";
+setTimeout(()=>p.style.display="none",1500);
+}
+
+function createMoney(amount){
+let m=document.createElement("div");
+m.className="money";
+m.innerText="+"+amount+"$";
+m.style.left=(Math.random()*100)+"px";
+document.getElementById("character").appendChild(m);
+setTimeout(()=>m.remove(),1000);
+}
+
+function updateStage(){
+for(let i=stages.length-1;i>=0;i--){
+if(level>=stages[i].lvl){
+document.getElementById("character").innerHTML=generateCharacter(stages[i].color);
+document.getElementById("status").innerText=stages[i].name;
+break;
+}
+}
+}
+
+function updateUI(){
+document.getElementById("score").innerText=score+"$";
+document.getElementById("level").innerText="Уровень "+level;
+document.getElementById("tapIncome").innerText=tapIncome;
+document.getElementById("passiveIncome").innerText=passiveIncome;
+document.getElementById("xpbar").
+style.width=(xp/(level*100)*100)+"%";
+document.getElementById("energybar").style.width=(energy/maxEnergy*100)+"%";
+updateStage();
+}
+updateUI();
+
+document.getElementById("character").onclick=function(){
+if(energy<=0)return;
+let income=boostActive?tapIncome*2:tapIncome;
+score+=income;
+xp+=5;
+energy--;
+
+createMoney(income);
+document.getElementById("clickSound").play();
+
+if(xp>=level*100){
+xp=0;
+level++;
+popup("Новый статус!");
+}
+
+updateUI();
+};
+
+function upgradeTap(){
+if(score>=100){
+score-=100;
+tapIncome++;
+updateUI();
+}
+}
+function buyPassive(){
+if(score>=250){
+score-=250;
+passiveIncome+=5;
+updateUI();
+}
+}
+function boost(){
+if(score>=500&&!boostActive){
+score-=500;
+boostActive=true;
+popup("x2 активирован!");
+setTimeout(()=>boostActive=false,10000);
+updateUI();
+}
+}
+function daily(){
+let now=Date.now();
+if(now-lastDaily>86400000){
+score+=1000;
+lastDaily=now;
+popup("+1000$ бонус!");
+updateUI();
+}else{
+popup("Сегодня уже получен");
+}
+}
+
+setInterval(()=>{
+score+=passiveIncome;
+if(energy<maxEnergy)energy++;
+updateUI();
+},1000);
+</script>
+</body>
+</html>
